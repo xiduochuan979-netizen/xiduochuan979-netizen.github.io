@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ede4ff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="小账本" />
+    <meta name="description" content="无需登录、数据保存在本机的极简记账应用" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235e359f'/%3E%3Cpath d='M18 17h28v30H18z' fill='%23fff'/%3E%3Cpath d='M24 26h16M24 33h16M24 40h10' stroke='%23a87cf2' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
+    <title>小账本</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="month-label"></p>
+          <h1>小账本</h1>
+        </div>
+        <span class="local-badge" title="账单只保存在当前设备">仅存本机</span>
+      </header>
+
+      <section class="summary" aria-label="重点开销">
+        <div class="spend-stat today-stat">
+          <span>今日开销</span>
+          <strong id="today-expense">¥0.00</strong>
+        </div>
+        <div class="spend-stat month-stat">
+          <span>本月开销</span>
+          <strong class="expense" id="month-expense">¥0.00</strong>
+        </div>
+        <div class="summary-secondary">
+          <span>本月收入 <strong class="income" id="month-income">¥0.00</strong></span>
+          <span>本月结余 <strong id="month-balance">¥0.00</strong></span>
+        </div>
+      </section>
+
+      <section class="daily-card" aria-labelledby="daily-title">
+        <div class="section-heading">
+          <h2 id="daily-title">近 7 日每日花费</h2>
+          <span>支出趋势</span>
+        </div>
+        <div id="daily-bars" class="daily-bars" aria-label="近七日每日支出条形图"></div>
+      </section>
+
+      <section class="entry-card" aria-labelledby="entry-title">
+        <div class="section-heading">
+          <h2 id="entry-title">记一笔</h2>
+          <span>今天</span>
+        </div>
+
+        <form id="transaction-form">
+          <fieldset class="type-switch">
+            <legend class="sr-only">收支类型</legend>
+            <label>
+              <input type="radio" name="type" value="expense" checked />
+              <span>支出</span>
+            </label>
+            <label>
+              <input type="radio" name="type" value="income" />
+              <span>收入</span>
+            </label>
+          </fieldset>
+
+          <label class="amount-field">
+            <span>金额</span>
+            <span class="amount-input"><b>¥</b><input id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-describedby="amount-error" required /></span>
+          </label>
+          <p class="field-error" id="amount-error" role="alert"></p>
+
+          <fieldset class="category-field">
+            <legend>分类</legend>
+            <div class="category-grid" id="category-grid"></div>
+          </fieldset>
+
+          <label class="note-field">
+            <span>备注 <small>选填</small></span>
+            <input id="note" name="note" maxlength="60" placeholder="例如：午餐" />
+          </label>
+
+          <button class="save-button" type="submit">记下这笔</button>
+        </form>
+      </section>
+
+      <section class="breakdown-card" aria-labelledby="breakdown-title">
+        <div class="section-heading">
+          <h2 id="breakdown-title">本月开销分类</h2>
+          <span>金额与占比</span>
+        </div>
+        <div class="breakdown-content">
+          <div id="category-pie" class="category-pie" role="img" aria-label="本月暂无支出">
+            <div><span>本月</span><strong id="pie-total">¥0.00</strong></div>
+          </div>
+          <div id="category-legend" class="category-legend"></div>
+        </div>
+        <p id="pie-empty" class="chart-empty">记一笔支出后，这里会显示分类占比。</p>
+      </section>
+
+      <section class="records" aria-labelledby="records-title">
+        <div class="section-heading">
+          <h2 id="records-title">全部账单</h2>
+          <span id="record-count">0 笔</span>
+        </div>
+        <details class="import-panel">
+          <summary>导入旧账单</summary>
+          <div class="import-body">
+            <p id="import-help">粘贴从旧账本复制的全部文字，系统会自动识别并跳过重复账单。</p>
+            <textarea id="import-text" maxlength="100000" aria-describedby="import-help" placeholder="在这里粘贴旧账单文字"></textarea>
+            <button id="import-button" type="button">开始导入</button>
+            <p id="import-status" role="status" aria-live="polite"></p>
+          </div>
+        </details>
+        <div id="transaction-list" class="transaction-list"></div>
+        <p id="empty-state" class="empty-state">还没有账单，先记下第一笔吧。</p>
+      </section>
+    </main>
+
+    <script src="./app.js?v=5" defer></script>
+  </body>
+</html>
