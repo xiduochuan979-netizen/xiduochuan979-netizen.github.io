@@ -51,7 +51,7 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
   background: rgb(255 255 255 / 48%);
 }
 
-.summary, .daily-card, .entry-card, .breakdown-card, .records {
+.summary, .calendar-card, .daily-card, .entry-card, .breakdown-card, .records {
   border-radius: 1.25rem;
   background: rgb(255 255 255 / 94%);
   box-shadow: 0 12px 32px rgb(75 47 111 / 9%);
@@ -87,8 +87,8 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 .income { color: #198760; }
 .expense { color: #d63c7c; }
 
-.daily-card, .entry-card, .breakdown-card, .records { padding: 1.05rem; }
-.daily-card, .entry-card, .breakdown-card, .records { margin-top: .85rem; }
+.calendar-card, .daily-card, .entry-card, .breakdown-card, .records { padding: 1.05rem; }
+.calendar-card, .daily-card, .entry-card, .breakdown-card, .records { margin-top: .85rem; }
 
 .section-heading {
   display: flex;
@@ -98,6 +98,51 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 }
 
 .section-heading > span { color: #9a8aaa; font-size: .8rem; }
+
+.calendar-heading { margin-bottom: .8rem; }
+.month-navigation { display: flex; align-items: center; gap: .45rem; }
+.month-navigation strong { min-width: 5.8rem; color: #59416f; text-align: center; font-size: .85rem; }
+.month-navigation button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: .6rem;
+  color: #6f3bd1;
+  background: #f3edfb;
+  font-size: 1.25rem;
+}
+.month-navigation button:active { background: #e8dcf8; }
+.month-navigation button:focus-visible, .month-day:focus-visible, .record-search-row button:focus-visible { outline: 3px solid rgb(124 77 255 / 25%); }
+
+.calendar-weekdays, .month-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .25rem;
+}
+.calendar-weekdays { margin-bottom: .3rem; color: #9a8aaa; text-align: center; font-size: .7rem; }
+.month-day, .month-day-spacer { min-width: 0; min-height: 3.65rem; }
+.month-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: .28rem .04rem .25rem;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: .65rem;
+  color: #51445e;
+  background: #faf7ff;
+  touch-action: manipulation;
+}
+.month-day:active { background: #eee5fa; }
+.month-day.is-today { border-color: #b99be8; }
+.month-day.is-selected { color: #fff; background: #7040bd; }
+.month-day.is-selected.is-today { border-color: #7040bd; box-shadow: inset 0 0 0 1px #fff; }
+.month-day-number { font-size: .72rem; line-height: 1; }
+.month-day-expense { max-width: 100%; overflow: hidden; color: #8a6cac; font-size: .53rem; line-height: 1.1; letter-spacing: -.03em; text-overflow: clip; white-space: nowrap; }
+.month-day.is-selected .month-day-expense { color: #eee4ff; }
+.calendar-hint { margin: .65rem 0 0; color: #8b7b9c; text-align: center; font-size: .75rem; line-height: 1.4; }
 
 .daily-bars {
   display: grid;
@@ -238,6 +283,23 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 .chart-empty { margin: .9rem 0 0; color: #9b8baa; text-align: center; font-size: .8rem; }
 
 .transaction-list { display: grid; gap: .2rem; }
+.record-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; margin-bottom: .2rem; }
+.record-search-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: .65rem .75rem;
+  border: 1px solid #ded4ea;
+  border-radius: .75rem;
+  outline: 0;
+  color: #302447;
+  background: #fdfbff;
+  font-size: .92rem;
+}
+.record-search-row input:focus { border-color: #8252d6; box-shadow: 0 0 0 3px rgb(124 77 255 / 10%); }
+.record-search-row button { padding: .5rem .65rem; border: 0; border-radius: .65rem; color: #6f3bd1; background: #f2ebff; font-size: .78rem; }
+.record-filter-hint { margin: .1rem 0 .45rem; color: #8b7b9c; font-size: .75rem; }
+.record-filter-hint:empty { display: none; }
 .import-panel { margin-bottom: .8rem; border: 1px solid #e5dced; border-radius: .85rem; background: #faf7ff; }
 .import-panel summary { padding: .7rem .8rem; cursor: pointer; color: #6f3bd1; font-size: .88rem; font-weight: 700; }
 .import-body { padding: 0 .8rem .8rem; }
@@ -301,7 +363,9 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 @media (min-width: 680px) {
   body { background: linear-gradient(180deg, #e7d9ff 0 26rem, #f5f1fb 26rem); }
   .app-shell { padding-top: 2.5rem; }
-  .daily-card, .entry-card, .breakdown-card, .records { padding: 1.35rem; }
+  .calendar-card, .daily-card, .entry-card, .breakdown-card, .records { padding: 1.35rem; }
+  .month-day { min-height: 4rem; }
+  .month-day-expense { font-size: .68rem; }
 }
 
 @media (prefers-reduced-motion: no-preference) {

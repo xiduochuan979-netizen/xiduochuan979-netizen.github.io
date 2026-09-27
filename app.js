@@ -16,7 +16,13 @@ const emptyState = document.querySelector("#empty-state");
 const importText = document.querySelector("#import-text");
 const importButton = document.querySelector("#import-button");
 const importStatus = document.querySelector("#import-status");
+const monthCalendar = document.querySelector("#month-calendar");
+const searchInput = document.querySelector("#transaction-search");
+const clearDateFilter = document.querySelector("#clear-date-filter");
 let transactions = loadTransactions();
+const now = new Date();
+let calendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+let selectedDateKey = "";
 
 // localStorage 可能被手动修改；读取时只接受结构正确的记录。
 function loadTransactions() {
@@ -157,6 +163,94 @@ function compactMoney(cents) {
   return amount ? `¥${amount.toLocaleString("zh-CN", { maximumFractionDigits: 1 })}` : "0";
 }
 
+function localDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// 日历按本地日期累计支出，避免 UTC 日期偏移到前一天。
+function dailyExpenseTotals(items, month) {
+  const totals = new Map();
+  items.forEach((item) => {
+    const date = new Date(item.createdAt);
+    if (item.type !== "expense" || date.getFullYear() !== month.getFullYear() || date.getMonth() !== month.getMonth()) return;
+    totals.set(date.getDate(), (totals.get(date.getDate()) || 0) + item.amountCents);
+  });
+  return totals;
+}
+
+function filterTransactions(items, query, dateKey) {
+  const keyword = query.trim().toLocaleLowerCase("zh-CN");
+  return items
+    .filter((item) => {
+      if (keyword) return `${item.note || ""} ${item.category || ""}`.toLocaleLowerCase("zh-CN").includes(keyword);
+      return !dateKey || localDateKey(new Date(item.createdAt)) === dateKey;
+    })
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+}
+
+function renderCalendar() {
+  const label = document.querySelector("#calendar-month-label");
+  const hint = document.querySelector("#calendar-hint");
+  const totals = dailyExpenseTotals(transactions, calendarMonth);
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  label.textContent = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(calendarMonth);
+  monthCalendar.replaceChildren();
+
+  const leadingDays = (new Date(year, month, 1).getDay() + 6) % 7;
+  for (let index = 0; index < leadingDays; index += 1) {
+    const spacer = document.createElement("span");
+    spacer.className = "month-day-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    monthCalendar.append(spacer);
+  }
+
+  const dayCount = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  for (let day = 1; day <= dayCount; day += 1) {
+    const date = new Date(year, month, day);
+    const key = localDateKey(date);
+    const amountCents = totals.get(day) || 0;
+    const button = document.createElement("button");
+    button.className = "month-day";
+    button.type = "button";
+    button.dataset.date = key;
+    button.setAttribute("aria-label", `${month + 1}月${day}日支出${formatMoney(amountCents)}`);
+    button.setAttribute("aria-pressed", String(selectedDateKey === key));
+    if (isSameDay(date, today)) {
+      button.classList.add("is-today");
+      button.setAttribute("aria-current", "date");
+    }
+    if (selectedDateKey === key) button.classList.add("is-selected");
+
+    const number = document.createElement("span");
+    number.className = "month-day-number";
+    number.textContent = String(day);
+    const amount = document.createElement("span");
+    amount.className = "month-day-expense";
+    amount.textContent = amountCents ? compactMoney(amountCents) : "¥0";
+    button.append(number, amount);
+    monthCalendar.append(button);
+  }
+
+  if (selectedDateKey) {
+    const [, selectedMonth, selectedDay] = selectedDateKey.split("-").map(Number);
+    const amountCents = totals.get(selectedDay) || 0;
+    hint.textContent = `${selectedMonth}月${selectedDay}日支出 ${formatMoney(amountCents)} · 已筛选当天账单`;
+  } else {
+    hint.textContent = "点日期查看当天账单；每天金额为支出。";
+  }
+  clearDateFilter.hidden = !selectedDateKey;
+}
+
+function changeCalendarMonth(offset) {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + offset, 1);
+  selectedDateKey = "";
+  searchInput.value = "";
+  renderCalendar();
+  renderTransactions();
+}
+
 function selectedType() {
   return form.elements.type.value;
 }
@@ -257,7 +351,8 @@ function renderCategoryChart() {
 
 function renderTransactions() {
   list.replaceChildren();
-  const sorted = [...transactions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const query = searchInput.value.trim();
+  const sorted = filterTransactions(transactions, query, selectedDateKey);
 
   sorted.forEach((item) => {
     const row = document.createElement("article");
@@ -291,12 +386,26 @@ function renderTransactions() {
     list.append(row);
   });
 
-  document.querySelector("#record-count").textContent = `${transactions.length} 笔`;
-  emptyState.hidden = transactions.length > 0;
+  document.querySelector("#record-count").textContent = `${sorted.length} 笔`;
+  emptyState.hidden = sorted.length > 0;
+  emptyState.textContent = transactions.length === 0
+    ? "还没有账单，先记下第一笔吧。"
+    : query
+      ? "没有找到匹配的账单。"
+      : selectedDateKey
+        ? "这一天没有账单。"
+        : "没有账单。";
+  document.querySelector("#record-filter-hint").textContent = query
+    ? `在全部账单中搜索“${query}”`
+    : selectedDateKey
+      ? "只显示所选日期的账单"
+      : "";
+  clearDateFilter.hidden = !selectedDateKey;
 }
 
 function render() {
   renderSummary();
+  renderCalendar();
   renderDailyChart();
   renderCategoryChart();
   renderTransactions();
@@ -313,6 +422,10 @@ function addTransaction({ type, amountCents, category, note = "" }) {
   };
   transactions.push(item);
   if (!saveTransactions()) transactions.pop();
+  else {
+    selectedDateKey = "";
+    searchInput.value = "";
+  }
   render();
   return item;
 }
@@ -358,6 +471,23 @@ importButton.addEventListener("click", () => {
   if (!result.error) importText.value = "";
 });
 
+document.querySelector("#previous-month").addEventListener("click", () => changeCalendarMonth(-1));
+document.querySelector("#next-month").addEventListener("click", () => changeCalendarMonth(1));
+monthCalendar.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-date]");
+  if (!button) return;
+  selectedDateKey = selectedDateKey === button.dataset.date ? "" : button.dataset.date;
+  searchInput.value = "";
+  renderCalendar();
+  renderTransactions();
+});
+searchInput.addEventListener("input", renderTransactions);
+clearDateFilter.addEventListener("click", () => {
+  selectedDateKey = "";
+  renderCalendar();
+  renderTransactions();
+});
+
 // 支持 WebMCP 的浏览器可以让 AI 调用同一套记账逻辑；普通浏览器会直接跳过。
 function registerWebMCP() {
   if (!document.modelContext?.registerTool) return;
@@ -400,6 +530,13 @@ const chartCheck = [
 console.assert(todayExpense(chartCheck, new Date(2026, 8, 14, 12)) === 500, "今日统计自检失败");
 console.assert(dailyExpenses(chartCheck, new Date(2026, 8, 14, 12)).at(-1).amountCents === 500, "每日统计自检失败");
 console.assert(monthCategoryExpenses(chartCheck, new Date(2026, 8, 14, 12)).find(([category]) => category === "餐饮")[1] === 300, "分类统计自检失败");
+console.assert(dailyExpenseTotals(chartCheck, new Date(2026, 8, 1)).get(14) === 500, "月历每日支出自检失败");
+const filterCheck = [
+  { type: "expense", amountCents: 300, category: "工作", note: "机油", createdAt: new Date(2026, 8, 12).toISOString() },
+  { type: "expense", amountCents: 200, category: "餐饮", note: "午餐", createdAt: new Date(2026, 8, 14).toISOString() },
+];
+console.assert(filterTransactions(filterCheck, "机油", localDateKey(new Date(2026, 8, 14))).length === 1, "备注搜索应查找全部日期");
+console.assert(filterTransactions(filterCheck, "", localDateKey(new Date(2026, 8, 14))).length === 1, "日期筛选自检失败");
 const importCheck = parseImportedTransactions("餐饮\n餐饮\n9/20 17:59 · 晚餐\n−¥12.34\n×\n工资\n工资\n9/20 18:00\n+¥100.00\n×", new Date(2026, 8, 20, 20));
 console.assert(importCheck.length === 2 && importCheck[0].amountCents === 1234 && importCheck[1].type === "income", "旧账单导入自检失败");
 
@@ -409,4 +546,4 @@ render();
 registerWebMCP();
 
 // 注册离线缓存；安装到主屏幕后没有网络也能打开。
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=5");
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=6");
