@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235e359f'/%3E%3Cpath d='M18 17h28v30H18z' fill='%23fff'/%3E%3Cpath d='M24 26h16M24 33h16M24 40h10' stroke='%23a87cf2' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=6" />
+    <link rel="stylesheet" href="./styles.css?v=7" />
     <title>小账本</title>
   </head>
   <body>
@@ -102,18 +102,27 @@
         </form>
       </section>
 
-      <section class="breakdown-card" aria-labelledby="breakdown-title">
+      <section class="breakdown-card" id="spending" aria-labelledby="breakdown-title">
         <div class="section-heading">
-          <h2 id="breakdown-title">本月开销分类</h2>
-          <span>金额与占比</span>
+          <h2 id="breakdown-title">支出统计</h2>
+          <div class="month-navigation">
+            <button id="chart-prev" type="button" aria-label="上一年">‹</button>
+            <strong id="chart-period" aria-live="polite"></strong>
+            <button id="chart-next" type="button" aria-label="下一年">›</button>
+          </div>
         </div>
+        <fieldset class="type-switch" id="chart-modes">
+          <legend class="sr-only">统计方式</legend>
+          <label><input id="year-view" type="radio" name="chart-mode" value="months" checked /><span>每月花费</span></label>
+          <label><input type="radio" name="chart-mode" value="categories" /><span>单月分类</span></label>
+        </fieldset>
         <div class="breakdown-content">
-          <div id="category-pie" class="category-pie" role="img" aria-label="本月暂无支出">
-            <div><span>本月</span><strong id="pie-total">¥0.00</strong></div>
+          <div id="category-pie" class="category-pie" role="img" aria-label="支出占比">
+            <div><span id="pie-caption">全年支出</span><strong id="pie-total">¥0.00</strong></div>
           </div>
           <div id="category-legend" class="category-legend"></div>
         </div>
-        <p id="pie-empty" class="chart-empty">记一笔支出后，这里会显示分类占比。</p>
+        <p id="pie-empty" class="chart-empty" hidden></p>
       </section>
 
       <section class="records" aria-labelledby="records-title">
@@ -140,6 +149,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=6" defer></script>
+    <script src="./app.js?v=7" defer></script>
   </body>
 </html>

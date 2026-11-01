@@ -4,7 +4,7 @@ const CATEGORIES = {
   expense: ["餐饮", "交通", "购物", "工作", "居住", "娱乐", "其他"],
   income: ["工资", "奖金", "兼职", "理财", "其他"],
 };
-const CATEGORY_COLORS = ["#7c4dff", "#a56cf5", "#d05ee5", "#ec6ab1", "#ff8a80", "#f4b860", "#63a8ff"];
+const PIE_COLORS = ["#7c4dff", "#a56cf5", "#d05ee5", "#ec6ab1", "#ff8a80", "#f4b860", "#63a8ff", "#297388", "#50aa8a", "#93a934", "#b87539", "#6559a5"];
 
 const form = document.querySelector("#transaction-form");
 const amountInput = document.querySelector("#amount");
@@ -19,6 +19,7 @@ const importStatus = document.querySelector("#import-status");
 const monthCalendar = document.querySelector("#month-calendar");
 const searchInput = document.querySelector("#transaction-search");
 const clearDateFilter = document.querySelector("#clear-date-filter");
+const yearView = document.querySelector("#year-view");
 let transactions = loadTransactions();
 const now = new Date();
 let calendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -157,6 +158,18 @@ function monthCategoryExpenses(items, now = new Date()) {
   return Object.entries(totals).sort((left, right) => right[1] - left[1]);
 }
 
+// 只累计所选年份的支出，以整数分求和。空月份保留为 0，图例始终按 1～12 月排列。
+function monthlyExpenses(items, year) {
+  const centsByMonth = Array(12).fill(0);
+  for (const item of items) {
+    const date = new Date(item.createdAt);
+    if (item.type === "expense" && date.getFullYear() === year) {
+      centsByMonth[date.getMonth()] += item.amountCents;
+    }
+  }
+  return centsByMonth.map((cents, month) => [`${month + 1}月`, cents]);
+}
+
 function compactMoney(cents) {
   const amount = cents / 100;
   if (amount >= 10000) return `¥${(amount / 10000).toFixed(1)}万`;
@@ -248,6 +261,7 @@ function changeCalendarMonth(offset) {
   selectedDateKey = "";
   searchInput.value = "";
   renderCalendar();
+  renderSpendingChart();
   renderTransactions();
 }
 
@@ -307,27 +321,36 @@ function renderDailyChart() {
   });
 }
 
-function renderCategoryChart() {
+function renderSpendingChart() {
   const pie = document.querySelector("#category-pie");
   const legend = document.querySelector("#category-legend");
   const empty = document.querySelector("#pie-empty");
-  const categories = monthCategoryExpenses(transactions);
-  const total = categories.reduce((sum, [, cents]) => sum + cents, 0);
+  const annual = yearView.checked;
+  const year = calendarMonth.getFullYear();
+  const period = annual ? `${year}年` : `${year}年${calendarMonth.getMonth() + 1}月`;
+  const entries = annual ? monthlyExpenses(transactions, year) : monthCategoryExpenses(transactions, calendarMonth);
+  const total = entries.reduce((sum, [, cents]) => sum + cents, 0);
+  document.querySelector("#chart-period").textContent = period;
+  document.querySelector("#chart-prev").setAttribute("aria-label", annual ? "上一年" : "上个月");
+  document.querySelector("#chart-next").setAttribute("aria-label", annual ? "下一年" : "下个月");
+  document.querySelector("#pie-caption").textContent = annual ? "全年支出" : "当月支出";
   document.querySelector("#pie-total").textContent = formatMoney(total);
   legend.replaceChildren();
 
   if (!total) {
     pie.style.background = "#eee8f7";
-    pie.setAttribute("aria-label", "本月暂无支出");
+    empty.textContent = `${period}没有支出记录。`;
+    pie.setAttribute("aria-label", empty.textContent);
     empty.hidden = false;
     return;
   }
 
   let start = 0;
-  const segments = categories.map(([category, cents], index) => {
+  const segments = [];
+  entries.forEach(([name, cents], index) => {
     const end = start + (cents / total) * 100;
-    const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-    const segment = `${color} ${start}% ${end}%`;
+    const color = cents ? PIE_COLORS[index % PIE_COLORS.length] : "#ded8e7";
+    if (cents) segments.push(`${color} ${start}% ${end}%`);
     start = end;
 
     const item = document.createElement("div");
@@ -335,17 +358,17 @@ function renderCategoryChart() {
     const label = document.createElement("span");
     const dot = document.createElement("i");
     dot.style.background = color;
-    label.append(dot, document.createTextNode(category));
+    label.append(dot, document.createTextNode(name));
     const value = document.createElement("strong");
     value.className = "legend-value";
-    value.textContent = `${formatMoney(cents)} · ${Math.round((cents / total) * 100)}%`;
+    const share = cents && cents / total < 0.001 ? "<0.1%" : (cents / total).toLocaleString("zh-CN", { style: "percent", maximumFractionDigits: 1 });
+    value.textContent = `${formatMoney(cents)} · ${share}`;
     item.append(label, value);
     legend.append(item);
-    return segment;
   });
 
   pie.style.background = `conic-gradient(${segments.join(", ")})`;
-  pie.setAttribute("aria-label", `本月支出${formatMoney(total)}，${categories.map(([category, cents]) => `${category}${Math.round((cents / total) * 100)}%`).join("，")}`);
+  pie.setAttribute("aria-label", `${period}共支出${formatMoney(total)}，各项金额与占比见图例。`);
   empty.hidden = true;
 }
 
@@ -407,7 +430,7 @@ function render() {
   renderSummary();
   renderCalendar();
   renderDailyChart();
-  renderCategoryChart();
+  renderSpendingChart();
   renderTransactions();
 }
 
@@ -473,6 +496,9 @@ importButton.addEventListener("click", () => {
 
 document.querySelector("#previous-month").addEventListener("click", () => changeCalendarMonth(-1));
 document.querySelector("#next-month").addEventListener("click", () => changeCalendarMonth(1));
+document.querySelector("#chart-modes").addEventListener("change", renderSpendingChart);
+document.querySelector("#chart-prev").addEventListener("click", () => changeCalendarMonth(yearView.checked ? -12 : -1));
+document.querySelector("#chart-next").addEventListener("click", () => changeCalendarMonth(yearView.checked ? 12 : 1));
 monthCalendar.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-date]");
   if (!button) return;
@@ -531,6 +557,12 @@ console.assert(todayExpense(chartCheck, new Date(2026, 8, 14, 12)) === 500, "今
 console.assert(dailyExpenses(chartCheck, new Date(2026, 8, 14, 12)).at(-1).amountCents === 500, "每日统计自检失败");
 console.assert(monthCategoryExpenses(chartCheck, new Date(2026, 8, 14, 12)).find(([category]) => category === "餐饮")[1] === 300, "分类统计自检失败");
 console.assert(dailyExpenseTotals(chartCheck, new Date(2026, 8, 1)).get(14) === 500, "月历每日支出自检失败");
+const annualCheck = monthlyExpenses([...chartCheck,
+  { type: "income", amountCents: 1000, createdAt: new Date(2026, 8, 1) },
+  { type: "expense", amountCents: 999, createdAt: new Date(2025, 8, 1) },
+  { type: "expense", amountCents: 123, createdAt: new Date(2026, 11, 31) },
+], 2026);
+console.assert(annualCheck.length === 12 && annualCheck[0][1] === 0 && annualCheck[8][1] === 500 && annualCheck[11][1] === 123, "各月支出自检失败");
 const filterCheck = [
   { type: "expense", amountCents: 300, category: "工作", note: "机油", createdAt: new Date(2026, 8, 12).toISOString() },
   { type: "expense", amountCents: 200, category: "餐饮", note: "午餐", createdAt: new Date(2026, 8, 14).toISOString() },
@@ -546,4 +578,4 @@ render();
 registerWebMCP();
 
 // 注册离线缓存；安装到主屏幕后没有网络也能打开。
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=6");
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=7");

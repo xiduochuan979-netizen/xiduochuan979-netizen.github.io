@@ -248,14 +248,14 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 
 .breakdown-content {
   display: grid;
-  grid-template-columns: 7.5rem minmax(0, 1fr);
+  grid-template-columns: 9.5rem minmax(0, 1fr);
   align-items: center;
   gap: 1rem;
 }
 
 .category-pie {
   display: grid;
-  width: 7.5rem;
+  width: 9.5rem;
   aspect-ratio: 1;
   place-items: center;
   border-radius: 50%;
@@ -264,7 +264,7 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 
 .category-pie > div {
   display: grid;
-  width: 64%;
+  width: 72%;
   aspect-ratio: 1;
   place-content: center;
   border-radius: 50%;
@@ -273,7 +273,7 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 }
 
 .category-pie span { color: #9787a8; font-size: .7rem; }
-.category-pie strong { max-width: 4.2rem; overflow: hidden; color: #483658; font-size: .78rem; text-overflow: ellipsis; }
+.category-pie strong { max-width: 6.4rem; overflow-wrap: anywhere; color: #483658; font-size: .9rem; font-variant-numeric: tabular-nums; }
 .category-legend { display: grid; gap: .5rem; }
 .legend-item { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; }
 .legend-item span { display: flex; align-items: center; min-width: 0; color: #695a78; }
@@ -281,6 +281,14 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 .legend-item strong { color: #4b3a5b; }
 .legend-value { flex: 0 0 auto; text-align: right; white-space: nowrap; }
 .chart-empty { margin: .9rem 0 0; color: #9b8baa; text-align: center; font-size: .8rem; }
+
+@media (max-width: 520px) {
+  .breakdown-content { grid-template-columns: minmax(0, 1fr); }
+  .category-pie { justify-self: center; }
+  .category-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+  .legend-item { display: grid; gap: .2rem; border-top: 1px solid #eee8f7; padding-top: .35rem; }
+  .legend-value { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+}
 
 .transaction-list { display: grid; gap: .2rem; }
 .record-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; margin-bottom: .2rem; }
