@@ -274,19 +274,35 @@ h2 { margin-bottom: 0; font-size: 1.1rem; letter-spacing: -.02em; }
 
 .category-pie span { color: #9787a8; font-size: .7rem; }
 .category-pie strong { max-width: 6.4rem; overflow-wrap: anywhere; color: #483658; font-size: .9rem; font-variant-numeric: tabular-nums; }
-.category-legend { display: grid; gap: .5rem; }
+.chart-context { min-width: 0; color: #51366e; }
+.chart-context p { margin: .35rem 0 0; color: #6f607f; font-size: .83rem; line-height: 1.55; }
+.category-legend { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.category-legend.category-details { grid-template-columns: minmax(0, 1fr); }
+.category-legend button, .category-details details { padding: .65rem; border: 1px solid #e9e0f4; border-radius: .65rem; background: #fcfaff; }
+.category-legend button, .category-details summary { cursor: pointer; }
+.category-details details[open] { border-color: #ae8ed9; }
 .legend-item { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; }
 .legend-item span { display: flex; align-items: center; min-width: 0; color: #695a78; }
 .legend-item i { width: .55rem; height: .55rem; margin-right: .45rem; flex: 0 0 auto; border-radius: 50%; }
 .legend-item strong { color: #4b3a5b; }
 .legend-value { flex: 0 0 auto; text-align: right; white-space: nowrap; }
+.category-details summary.legend-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem .5rem; }
+.category-details summary small { color: #6f607f; line-height: 1.4; }
+.category-details summary small:last-child { text-align: right; color: #6846a0; }
+.category-details summary small:last-child::after { content: " ▾"; }
+.category-details details[open] summary small:last-child::after { content: " ▴"; }
+.chart-bill { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; border-top: 1px solid #eee8f7; margin: .5rem 0 0; padding-top: .5rem; font-size: .8rem; }
+.chart-bill span { min-width: 0; overflow-wrap: anywhere; }
+.chart-bill strong { white-space: nowrap; }
+.category-details .prior-bills { margin-top: .65rem; background: white; color: #614781; font-size: .83rem; }
 .chart-empty { margin: .9rem 0 0; color: #9b8baa; text-align: center; font-size: .8rem; }
 
 @media (max-width: 520px) {
-  .breakdown-content { grid-template-columns: minmax(0, 1fr); }
-  .category-pie { justify-self: center; }
+  .breakdown-content { grid-template-columns: 7.8rem minmax(0, 1fr); gap: .7rem; }
+  .category-pie { width: 7.8rem; }
+  .category-pie strong { max-width: 5rem; }
   .category-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
-  .legend-item { display: grid; gap: .2rem; border-top: 1px solid #eee8f7; padding-top: .35rem; }
+  .legend-item { display: grid; gap: .2rem; }
   .legend-value { text-align: left; white-space: normal; overflow-wrap: anywhere; }
 }
 

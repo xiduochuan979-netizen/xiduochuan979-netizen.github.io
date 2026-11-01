@@ -147,15 +147,60 @@ function dailyExpenses(items, now = new Date()) {
   });
 }
 
-function monthCategoryExpenses(items, now = new Date()) {
-  const totals = {};
+// 本月和上月按相同天数比较，已经结束的月份按整月比较。
+function monthComparison(items, month, today = new Date()) {
+  const year = month.getFullYear();
+  const index = month.getMonth();
+  const previous = new Date(year, index - 1, 1);
+  const partial = year === today.getFullYear() && index === today.getMonth()
+    && today.getDate() < new Date(year, index + 1, 0).getDate();
+  const cutoff = partial ? today.getDate() : 31;
+  const previousEnd = Math.min(cutoff, new Date(year, index, 0).getDate());
+  const period = partial ? (previousEnd === 1 ? "1日" : `1日至${previousEnd}日`) : "全月";
+  const previousLabel = `${previous.getFullYear()}年${previous.getMonth() + 1}月${period}`;
+  const current = new Map();
+  const baseline = new Map();
+  const records = [];
+  const previousRecords = [];
+  let previousTotal = 0;
   items.forEach((item) => {
     const date = new Date(item.createdAt);
-    if (item.type === "expense" && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()) {
-      totals[item.category] = (totals[item.category] || 0) + item.amountCents;
+    if (item.type !== "expense" || date.getDate() > cutoff) return;
+    if (date.getFullYear() === year && date.getMonth() === index) {
+      current.set(item.category, (current.get(item.category) || 0) + item.amountCents);
+      records.push(item);
+    } else if (date.getFullYear() === previous.getFullYear() && date.getMonth() === previous.getMonth()) {
+      baseline.set(item.category, (baseline.get(item.category) || 0) + item.amountCents);
+      previousTotal += item.amountCents;
+      previousRecords.push(item);
     }
   });
-  return Object.entries(totals).sort((left, right) => right[1] - left[1]);
+  // 上月有、这月没有的分类也能看到，才能看清少花在哪里。
+  const categories = new Set([...current.keys(), ...baseline.keys()]);
+  const entries = Array.from(categories, (name) => [name, current.get(name) || 0])
+    .sort((a, b) => b[1] - a[1] || (baseline.get(b[0]) || 0) - (baseline.get(a[0]) || 0));
+  return { entries, records, previousRecords, baseline, previousLabel, previousTotal, partial, cutoff };
+}
+
+function spendingChange(cents, previousCents) {
+  const difference = cents - previousCents;
+  if (difference === 0) return "持平";
+  return `${difference > 0 ? "多花" : "少花"} ${formatMoney(Math.abs(difference))}`;
+}
+
+function appendBillLines(container, bills) {
+  bills.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  for (const bill of bills) {
+    const line = document.createElement("p");
+    line.className = "chart-bill";
+    const when = new Date(bill.createdAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const note = document.createElement("span");
+    note.textContent = `${when} · ${bill.note || "无备注"}`;
+    const amount = document.createElement("strong");
+    amount.textContent = formatMoney(bill.amountCents);
+    line.append(note, amount);
+    container.append(line);
+  }
 }
 
 // 只累计所选年份的支出，以整数分求和。空月份保留为 0，图例始终按 1～12 月排列。
@@ -328,32 +373,42 @@ function renderSpendingChart() {
   const annual = yearView.checked;
   const year = calendarMonth.getFullYear();
   const period = annual ? `${year}年` : `${year}年${calendarMonth.getMonth() + 1}月`;
-  const entries = annual ? monthlyExpenses(transactions, year) : monthCategoryExpenses(transactions, calendarMonth);
+  const comparison = annual ? null : monthComparison(transactions, calendarMonth);
+  const entries = annual ? monthlyExpenses(transactions, year) : comparison.entries;
   const total = entries.reduce((sum, [, cents]) => sum + cents, 0);
   document.querySelector("#chart-period").textContent = period;
   document.querySelector("#chart-prev").setAttribute("aria-label", annual ? "上一年" : "上个月");
   document.querySelector("#chart-next").setAttribute("aria-label", annual ? "下一年" : "下个月");
-  document.querySelector("#pie-caption").textContent = annual ? "全年支出" : "当月支出";
+  const caption = annual ? "全年支出" : comparison.partial ? `截至${comparison.cutoff}日` : "当月支出";
+  document.querySelector("#pie-caption").textContent = caption;
   document.querySelector("#pie-total").textContent = formatMoney(total);
   legend.replaceChildren();
-
-  if (!total) {
-    pie.style.background = "#eee8f7";
-    empty.textContent = `${period}没有支出记录。`;
-    pie.setAttribute("aria-label", empty.textContent);
-    empty.hidden = false;
-    return;
+  legend.classList.toggle("category-details", !annual);
+  const title = document.querySelector("#comparison-title");
+  const base = document.querySelector("#comparison-base");
+  if (annual) {
+    title.textContent = "各月支出占比";
+    base.textContent = "点月份查看分类与账单。";
+  } else {
+    title.textContent = "分类支出与上月对比";
+    if (total && comparison.previousTotal) title.textContent = `较上期${spendingChange(total, comparison.previousTotal)}`;
+    base.textContent = comparison.previousTotal
+      ? `对比 ${comparison.previousLabel}，已记支出 ${formatMoney(comparison.previousTotal)}。点分类查看明细。`
+      : `${comparison.previousLabel}没有支出记录。点分类查看明细。`;
   }
+  empty.textContent = `${period}没有支出记录。`;
+  empty.hidden = total > 0;
 
   let start = 0;
   const segments = [];
   entries.forEach(([name, cents], index) => {
-    const end = start + (cents / total) * 100;
+    const fraction = total ? cents / total : 0;
+    const end = start + fraction * 100;
     const color = cents ? PIE_COLORS[index % PIE_COLORS.length] : "#ded8e7";
     if (cents) segments.push(`${color} ${start}% ${end}%`);
     start = end;
 
-    const item = document.createElement("div");
+    const item = document.createElement(annual ? "button" : "summary");
     item.className = "legend-item";
     const label = document.createElement("span");
     const dot = document.createElement("i");
@@ -361,15 +416,53 @@ function renderSpendingChart() {
     label.append(dot, document.createTextNode(name));
     const value = document.createElement("strong");
     value.className = "legend-value";
-    const share = cents && cents / total < 0.001 ? "<0.1%" : (cents / total).toLocaleString("zh-CN", { style: "percent", maximumFractionDigits: 1 });
+    const share = fraction > 0 && fraction < 0.001 ? "<0.1%" : fraction.toLocaleString("zh-CN", { style: "percent", maximumFractionDigits: 1 });
     value.textContent = `${formatMoney(cents)} · ${share}`;
     item.append(label, value);
-    legend.append(item);
+    if (annual) {
+      item.type = "button";
+      item.addEventListener("click", () => {
+        document.querySelector("#category-view").checked = true;
+        changeCalendarMonth(index - calendarMonth.getMonth());
+      });
+      legend.append(item);
+    } else {
+      const details = document.createElement("details");
+      const bills = comparison.records.filter((bill) => bill.category === name);
+      const reference = document.createElement("small");
+      const previous = comparison.baseline.get(name) || 0;
+      reference.textContent = comparison.previousTotal
+        ? `上期 ${formatMoney(previous)} · ${spendingChange(cents, previous)}`
+        : "上期暂无支出记录";
+      const count = document.createElement("small");
+      count.textContent = `${bills.length} 笔明细`;
+      item.append(reference, count);
+      details.append(item);
+      details.addEventListener("toggle", () => {
+        appendBillLines(details, bills);
+        if (!bills.length) {
+          const message = document.createElement("p");
+          message.className = "chart-bill";
+          message.textContent = "这个月没有该分类的支出记录。";
+          details.append(message);
+        }
+        if (previous) {
+          const history = document.createElement("details");
+          history.className = "prior-bills";
+          const historyTitle = document.createElement("summary");
+          const priorBills = comparison.previousRecords.filter((bill) => bill.category === name);
+          historyTitle.textContent = `查看上期 ${priorBills.length} 笔 · ${formatMoney(previous)}`;
+          history.append(historyTitle);
+          history.addEventListener("toggle", () => appendBillLines(history, priorBills), { once: true });
+          details.append(history);
+        }
+      }, { once: true });
+      legend.append(details);
+    }
   });
 
-  pie.style.background = `conic-gradient(${segments.join(", ")})`;
+  pie.style.background = total ? `conic-gradient(${segments.join(", ")})` : "#eee8f7";
   pie.setAttribute("aria-label", `${period}共支出${formatMoney(total)}，各项金额与占比见图例。`);
-  empty.hidden = true;
 }
 
 function renderTransactions() {
@@ -555,7 +648,11 @@ const chartCheck = [
 ];
 console.assert(todayExpense(chartCheck, new Date(2026, 8, 14, 12)) === 500, "今日统计自检失败");
 console.assert(dailyExpenses(chartCheck, new Date(2026, 8, 14, 12)).at(-1).amountCents === 500, "每日统计自检失败");
-console.assert(monthCategoryExpenses(chartCheck, new Date(2026, 8, 14, 12)).find(([category]) => category === "餐饮")[1] === 300, "分类统计自检失败");
+const compareCheck = monthComparison([...chartCheck,
+  { type: "expense", category: "居住", amountCents: 99, createdAt: new Date(2026, 7, 14) },
+  { type: "expense", category: "居住", amountCents: 100, createdAt: new Date(2026, 7, 15) },
+], new Date(2026, 8, 1), new Date(2026, 8, 14));
+console.assert(compareCheck.entries[0][1] === 300 && compareCheck.records.length === 2 && compareCheck.previousTotal === 99 && compareCheck.entries.some(([name, cents]) => name === "居住" && cents === 0), "同期分类对比自检失败");
 console.assert(dailyExpenseTotals(chartCheck, new Date(2026, 8, 1)).get(14) === 500, "月历每日支出自检失败");
 const annualCheck = monthlyExpenses([...chartCheck,
   { type: "income", amountCents: 1000, createdAt: new Date(2026, 8, 1) },
@@ -578,4 +675,4 @@ render();
 registerWebMCP();
 
 // 注册离线缓存；安装到主屏幕后没有网络也能打开。
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=7");
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=8");

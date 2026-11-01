@@ -1,6 +1,6 @@
 // 缓存应用外壳，让主屏幕版本在断网时也能启动。
-const CACHE_NAME = "xiaozhangben-v7";
-const APP_FILES = ["./", "./index.html", "./styles.css?v=7", "./app.js?v=7", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
+const CACHE_NAME = "xiaozhangben-v8";
+const APP_FILES = ["./", "./index.html", "./styles.css?v=8", "./app.js?v=8", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_FILES)));
